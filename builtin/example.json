@@ -59,12 +59,12 @@
   },
 
   "layers": [
-    { "type": "base", "z": 10, "asset": "assets/base.png" },
+    { "type": "base", "z": 10, "asset": "@placeholder:base" },
     {
       "type": "enum", "z": 21, "field": "eyes",
       "map": {
-        "happy": "assets/eyes_happy.png",
-        "sad": "assets/eyes_sad.png"
+        "happy": "@placeholder:eyesHappy",
+        "sad": "@placeholder:eyesSad"
       }
     }
   ],
