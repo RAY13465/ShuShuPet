@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>鼠鼠桌宠 · 自检</title>
+<style>
+  html,body{margin:0;height:100%;background:#14141a;color:#e8e8e8;
+    font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;}
+  #bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px;
+    border-bottom:1px solid #2c2c36;}
+  #bar .t{flex:1;font-weight:700;}
+  button{padding:8px 14px;border:none;border-radius:8px;color:#fff;font-weight:600;
+    font-size:13px;cursor:pointer;}
+  #copy{background:#2e7d32}#re{background:#6a4a9a}
+  #note{padding:10px 14px;color:#9a9aa8;font-size:12.5px;border-bottom:1px solid #2c2c36;}
+  #tip{padding:8px 14px;color:#8bc34a;font-size:13px;min-height:20px;}
+  textarea{display:block;width:calc(100% - 28px);margin:0 14px 14px;box-sizing:border-box;
+    height:calc(100vh - 190px);background:#0d0d12;color:#c8e6c9;border:1px solid #2c2c36;
+    border-radius:8px;padding:12px;font:12px/1.55 Consolas,Menlo,monospace;
+    white-space:pre;overflow:auto;resize:none;}
+  code{background:#22222c;padding:1px 5px;border-radius:4px;color:#ffcc80;}
+</style>
+</head>
+<body>
+<div id="bar">
+  <div class="t">鼠鼠桌宠 · 自检报告</div>
+  <button id="copy">复制报告</button>
+  <button id="re">重新检测</button>
+</div>
+<div id="note">
+  这一页不依赖扩展是否启动成功，所以<b>悬浮按钮不出来时也能用</b>。<br>
+  点「复制报告」把全文发出来即可定位问题。自检内容：酒馆版本、扩展目录、文件是否齐全、
+  按钮/桌宠元素状态、桌宠包、当前聊天解析情况、本机存储。
+</div>
+<div id="tip"></div>
+<textarea id="out" readonly>检测中……（要发几个请求，稍等）</textarea>
+
+<script>
+(function () {
+  var out = document.getElementById('out');
+  var tip = document.getElementById('tip');
+
+  function setTip(msg, color) {
+    tip.textContent = msg || '';
+    tip.style.color = color || '#8bc34a';
+  }
+
+  function fallbackSelect() {
+    try {
+      out.removeAttribute('readonly');
+      out.focus();
+      out.select();
+      out.setSelectionRange(0, out.value.length);
+      out.setAttribute('readonly', 'readonly');
+      setTip('已选中全文，按 Ctrl+C 复制（Mac 用 ⌘+C）', '#ffb74d');
+    } catch (e) {}
+  }
+
+  document.getElementById('copy').onclick = function () {
+    var text = out.value || '';
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          setTip('已复制到剪贴板 ✓');
+        }, fallbackSelect);
+        return;
+      }
+    } catch (e) {}
+    fallbackSelect();
+  };
+
+  document.getElementById('re').onclick = run;
+
+  /* 这一页是扩展目录下的静态文件：
+     /scripts/extensions/third-party/<目录名>/selfcheck.html
+     自己算扩展目录 → 不写死目录名，解压成 ShuShuPet-master 也能用。 */
+  var BASE = (function () {
+    var m = location.pathname.match(/^(.*\/)[^/]*$/);
+    return m ? m[1] : './';
+  })();
+
+  function bust(url) {
+    return url + (url.indexOf('?') < 0 ? '?' : '&') + '_=' + Date.now();
+  }
+
+  function run() {
+    out.value = '检测中……（要发几个请求，稍等）';
+    setTip('');
+    var s = document.createElement('script');
+    s.src = bust(BASE + 'core/diagnose.js');
+    s.onerror = function () {
+      out.value = '取不到 ' + BASE + 'core/diagnose.js\n\n' +
+        '这说明扩展文件没有完整上传到这个目录。请确认：\n' +
+        '  1. 目录里应该有 index.js、manifest.json、style.css 和整个 core/ 文件夹\n' +
+        '  2. 如果是从 GitHub 下载的 zip，需要解压后把**里面的文件**放进来，' +
+        '不要只放一个 index.js\n' +
+        '  3. 目录名可以是任意名字（比如 ShuShuPet-master），但必须放在 ' +
+        'data/default-user/extensions/ 下';
+      setTip('自检脚本都没取到，扩展文件不完整', '#e57373');
+    };
+    s.onload = function () {
+      if (!window.PetDiagnose) {
+        out.value = 'diagnose.js 取到了，但没注册 window.PetDiagnose（文件可能损坏或被截断）。';
+        setTip('自检模块异常', '#e57373');
+        return;
+      }
+      window.PetDiagnose.collect().then(function (text) {
+        out.value = text;
+        setTip('检测完成。点「复制报告」把全文发出来。');
+      });
+    };
+    (document.head || document.documentElement).appendChild(s);
+  }
+
+  run();
+})();
+</script>
+</body>
+</html>

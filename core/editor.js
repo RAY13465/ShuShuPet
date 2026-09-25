@@ -724,7 +724,7 @@
 
           '<div style="font-weight:700;margin:0 0 8px;">① 基本信息</div>' +
           fieldRow('桌宠名字', draft.name, 'name') +
-          fieldRow('唯一 ID', draft.id, 'id', '', 'placeholder="英文，如 zaopet"') +
+          fieldRow('唯一 ID', draft.id, 'id', '', 'placeholder="英文，如 my-pet"') +
           fieldRow('标签名', draft.tag, 'tag', '', 'placeholder="模型输出用的标签，如 PetState"') +
 
           '<div style="font-weight:700;margin:16px 0 8px;">② 底图（必填）</div>' +
@@ -995,11 +995,27 @@
   var RUNTIME_URL = 'core/standalone-runtime.js';
   var runtimeCache = null;
 
+  /* 从当前正在执行的 <script src> 反推扩展目录。
+     document.currentScript 在异步回调里已经是 null，所以这里扫一遍所有 script，
+     取最后一个以 /core/ 开头的 src —— 本文件就是其中之一。 */
+  function guessBase() {
+    try {
+      var ss = document.querySelectorAll('script[src]');
+      for (var i = ss.length - 1; i >= 0; i--) {
+        var s = ss[i].getAttribute('src') || '';
+        var m = s.match(/^(.*\/)core\/[^/]+\.js(\?.*)?$/);
+        if (m) return m[1];
+      }
+    } catch (e) {}
+    return '';
+  }
+
   function fetchRuntime() {
     if (runtimeCache) return Promise.resolve(runtimeCache);
     var base = (window.__SHUSHU_PET__ && window.__SHUSHU_PET__.base) || '';
-    /* 用相对自身脚本的路径兜底，避免 base 推断失败 */
-    var urls = [base + RUNTIME_URL, 'scripts/extensions/third-party/shushu-pet/' + RUNTIME_URL];
+    /* 兜底路径不写死目录名：从加载本文件的 <script> 反推，解压出来带 -master 后缀也能用。
+       最差再用文档相对路径（酒馆根目录下就是 scripts/extensions/third-party/...） */
+    var urls = [base + RUNTIME_URL, guessBase() + RUNTIME_URL, 'scripts/extensions/third-party/' + RUNTIME_URL];
     return urls.reduce(function (p, u) {
       return p.then(function (src) {
         if (src) return src;

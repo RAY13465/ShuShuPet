@@ -13,7 +13,7 @@
   var BTN_ID = 'shushu-pet-open';
 
   var handlers = { onChange: null, onReset: null, getAvatar: null };
-  var state = { open: false };
+  var state = { open: false, watching: false };
 
   function on(ev, fn) { if (ev in handlers) handlers[ev] = fn; }
 
@@ -26,18 +26,55 @@
   }
 
   /* ---------------- 悬浮按钮 ---------------- */
-  function installButton(doc) {
-    if (doc.getElementById(BTN_ID)) return;
+  /* 样式全部带 !important：酒馆主题和别的扩展经常写 `div { ... }` 这种宽选择器，
+     这个按钮是裸 div，很容易被顺手改掉。 */
+  var BTN_CSS =
+    'position:fixed !important;left:6px !important;top:120px !important;' +
+    'z-index:9001 !important;background:rgba(120,80,160,.92) !important;color:#fff !important;' +
+    'padding:7px 10px !important;border-radius:9px !important;margin:0 !important;' +
+    'width:auto !important;height:auto !important;min-width:0 !important;max-width:none !important;' +
+    'font:600 12px/1 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif !important;' +
+    'text-align:center !important;box-shadow:0 3px 10px rgba(0,0,0,.35) !important;' +
+    'cursor:pointer !important;pointer-events:auto !important;user-select:none !important;' +
+    'display:block !important;visibility:visible !important;opacity:1 !important;';
+
+  function makeButton(doc) {
     var b = doc.createElement('div');
     b.id = BTN_ID;
     b.textContent = '鼠鼠桌宠';
-    b.title = '鼠鼠桌宠设置';
-    b.style.cssText =
-      'position:fixed;left:6px;top:120px;z-index:9001;background:rgba(120,80,160,.92);color:#fff;' +
-      'padding:7px 10px;border-radius:9px;font:600 12px/1 -apple-system,"PingFang SC",sans-serif;' +
-      'box-shadow:0 3px 10px rgba(0,0,0,.35);cursor:pointer;pointer-events:auto;user-select:none;';
+    b.title = '鼠鼠桌宠设置（点一下打开）';
+    b.style.cssText = BTN_CSS;
     b.onclick = function () { toggle(); };
-    doc.body.appendChild(b);
+    return b;
+  }
+
+  /* 按钮在不在。注意：不能只看元素存不存在——
+     被主题 display:none 或者被别的浮层盖住，元素也还在，用户一样看不见。 */
+  function buttonOk(doc) {
+    var b = doc.getElementById(BTN_ID);
+    if (!b || !b.isConnected) return false;
+    try {
+      if (!b.offsetWidth || !b.offsetHeight) return false;   /* 被 display:none 或尺寸压成 0 */
+      if (doc.defaultView.getComputedStyle(b).visibility === 'hidden') return false;
+    } catch (e) { return true; }
+    return true;
+  }
+
+  function installButton(doc) {
+    if (buttonOk(doc)) return;
+    var old = doc.getElementById(BTN_ID);
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    var b = makeButton(doc);
+    try { (doc.body || doc.documentElement).appendChild(b); } catch (e) {}
+  }
+
+  /* 保活：主题重绘 / 别的扩展清 DOM 时把按钮补回来 */
+  function startButtonWatch(doc) {
+    if (state.watching) return;
+    state.watching = true;
+    try {
+      doc.defaultView.setInterval(function () { installButton(doc); }, 2000);
+    } catch (e) {}
   }
 
   /* ---------------- 面板 ---------------- */
@@ -89,6 +126,7 @@
               (isDefault ? '已是默认' : '设为默认') + '</button>' +
             '<button data-act="edit" data-id="' + esc(p.id) + '" style="' + btnStyle('#6a4a9a') + '">可视化编辑</button>' +
             '<button data-act="export" data-id="' + esc(p.id) + '" style="' + btnStyle('#333') + '">导出</button>' +
+            '<button data-act="exportRegex" data-id="' + esc(p.id) + '" style="' + btnStyle('#2b5a7f') + '">导出正则</button>' +
             (p.source === 'user'
               ? '<button data-act="del" data-id="' + esc(p.id) + '" style="' + btnStyle('#7f2b2b') + '">删除</button>'
               : '') +
@@ -130,6 +168,7 @@
         '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
           '<button data-act="clearUser" style="' + btnStyle('#7f3a3a') + '">清空本机桌宠包</button>' +
           '<button data-act="clearAll" style="' + btnStyle('#7f2b2b') + '">清空全部本地数据</button>' +
+          '<button data-act="diagnose" style="' + btnStyle('#3a5a7f') + '">出问题了？点这里自检</button>' +
         '</div>' +
       '</div>' +
 
@@ -199,6 +238,12 @@
         return open(doc);
       }
 
+      if (act === 'diagnose') {
+        if (window.PetDiagnose) { window.PetDiagnose.show(doc); }
+        else { alert('自检模块 core/diagnose.js 没加载上——这本身就说明扩展文件不完整，请重新完整下载一次。'); }
+        return;
+      }
+
       if (act === 'reset') {
         if (handlers.onReset) handlers.onReset();
         U.store.del('shushu-pet:state');
@@ -226,6 +271,20 @@
         R.removePackage(id);
         fireChange();
         return open(doc);
+      }
+
+      if (act === 'exportRegex') {
+        var rp = R.getPackage(id);
+        if (!rp) { alert('找不到这个包。'); return; }
+        downloadJson(id + '-regex.json', buildRegexScripts(rp));
+        U.log('已导出正则：' + id + '-regex.json');
+        alert('已导出「' + (rp.name || id) + '-regex.json」\n\n' +
+              '用法：酒馆 → 扩展 → 正则 → 点「导入」选中这个文件。\n\n' +
+              '它包含两条正则：\n' +
+              '  1. ' + (rp.name || id) + '桌宠 —— 把标签从聊天里隐藏（显示层）\n' +
+              '  2. 不发送 —— 发给模型时去掉标签，省 token（生成层）\n\n' +
+              '这两条都是可选的：桌宠不依赖正则也能跑，加了只是让聊天干净些。');
+        return;
       }
 
       if (act === 'export') {
@@ -288,12 +347,73 @@
     inp.click();
   }
 
+  /* 生成可直接被酒馆「正则」面板导入的 JSON。
+     两条：一条管显示（藏标签），一条管发给模型（省 token）。
+     placement [2] = AI 输出；markdownOnly 管显示层，promptOnly 管生成层。 */
+  function uuid() {
+    try {
+      if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    } catch (e) {}
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0;
+      var v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  function buildRegexScripts(pkg) {
+    var tag = (pkg.contract && pkg.contract.tag) || 'PetState';
+    var safe = String(tag).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    /* 转义斜杠是为了兼容把整个字符串当正则字面量处理的解析方式；
+       标准 RegExp 的 source 里 `\/` 也合法，两种都认。 */
+    var find = '/<' + safe + '>[\\s\\S]*?<\\/' + safe + '>/';
+    var name = pkg.name || '桌宠';
+    /* 包名里已经带"桌宠"就不重复加，避免出现「示例桌宠桌宠」 */
+    var base = /桌宠\s*$/.test(name) ? name : (name + '桌宠');
+    return [
+      {
+        id: uuid(),
+        scriptName: base,
+        description: '把 <' + tag + '> 标签从聊天里隐藏（只影响显示，不改动聊天数据）',
+        findRegex: find,
+        replaceString: '',
+        trimStrings: [],
+        placement: [2],
+        disabled: false,
+        markdownOnly: true,
+        promptOnly: false,
+        runOnEdit: false,
+        substituteRegex: 0,
+        minDepth: null,
+        maxDepth: 2
+      },
+      {
+        id: uuid(),
+        scriptName: base + '不发送',
+        description: '发给模型时去掉 <' + tag + '> 标签，省 token',
+        findRegex: find,
+        replaceString: '',
+        trimStrings: [],
+        placement: [2],
+        disabled: false,
+        markdownOnly: false,
+        promptOnly: true,
+        runOnEdit: false,
+        substituteRegex: 0,
+        minDepth: 0,
+        maxDepth: null
+      }
+    ];
+  }
+
   window.PetSettings = {
     on: on,
     open: open,
     close: close,
     toggle: toggle,
     installButton: installButton,
-    downloadJson: downloadJson
+    startButtonWatch: startButtonWatch,
+    downloadJson: downloadJson,
+    buildRegexScripts: buildRegexScripts
   };
 })();
