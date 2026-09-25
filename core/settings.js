@@ -109,7 +109,31 @@
         '当前角色：<b style="color:#e8e8e8;">' + esc(avatar || '(未选择角色)') + '</b>' +
         (boundId ? ' · 已绑定包 <b style="color:#8bc34a;">' + esc(boundId) + '</b>' : ' · 未绑定（将使用默认包）') +
       '</div>' +
-      (rows || '<div style="color:#888;">还没有任何桌宠包。点「导入 JSON」添加。</div>') +
+
+      /* 帮助区：怎么用 + 怎么彻底清掉本机数据 */
+      '<div style="background:#12121a;border:1px solid #2c2c36;border-radius:10px;padding:10px;margin-bottom:12px;">' +
+        '<div style="font-weight:700;margin-bottom:6px;">快速上手</div>' +
+        '<div style="color:#9a9aa8;font-size:12px;line-height:1.7;">' +
+          '1. 点下面 <b style="color:#8bc34a;">「+ 新建桌宠包」</b>，填名字、贴底图 URL<br>' +
+          '2. 加几个字段（如"眼睛"），每个取值贴一张图 URL<br>' +
+          '3. 点 <b style="color:#8bc34a;">「▶ 演示」</b> 看效果，满意后 <b style="color:#8bc34a;">「保存并启用」</b><br>' +
+          '4. 保存时弹出的<b>提示词</b>复制进角色卡，模型就会输出标签驱动桌宠' +
+        '</div>' +
+      '</div>' +
+
+      '<div style="background:#1a1216;border:1px solid #3a2c36;border-radius:10px;padding:10px;margin-bottom:12px;">' +
+        '<div style="font-weight:700;margin-bottom:6px;color:#e57373;">清理本机数据</div>' +
+        '<div style="color:#9a9aa8;font-size:12px;line-height:1.7;margin-bottom:8px;">' +
+          '本机导入/编辑过的包存在浏览器 localStorage 里，<b>不在服务端</b>。' +
+          '换电脑或清浏览器数据就会丢。想清空就点下面。' +
+        '</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+          '<button data-act="clearUser" style="' + btnStyle('#7f3a3a') + '">清空本机桌宠包</button>' +
+          '<button data-act="clearAll" style="' + btnStyle('#7f2b2b') + '">清空全部本地数据</button>' +
+        '</div>' +
+      '</div>' +
+
+      (rows || '<div style="color:#888;">本机还没有桌宠包。点「+ 新建桌宠包」或「导入 JSON」。</div>') +
       '<div style="color:#666;font-size:11px;margin-top:14px;border-top:1px solid #2a2a2a;padding-top:10px;">' +
         '作者只需要提供：<b>标签名</b> + <b>字段契约</b> + <b>立绘素材</b>。' +
         '包格式见扩展目录下的 <code>docs/包格式.md</code>。' +
@@ -148,6 +172,31 @@
         close(doc);
         if (window.PetEditor) window.PetEditor.open(doc, target);
         return;
+      }
+
+      if (act === 'clearUser') {
+        var userPkgs = R.listPackages().filter(function (p) { return p.source === 'user'; });
+        if (!userPkgs.length) { alert('本机没有导入/编辑过的包，没什么可清的（内置模板不会被清掉）。'); return; }
+        if (!confirm('清空本机 ' + userPkgs.length + ' 个桌宠包？\n\n' +
+                     userPkgs.map(function (p) { return '· ' + p.name; }).join('\n') +
+                     '\n\n（内置模板包会保留）')) return;
+        userPkgs.forEach(function (p) { try { R.removePackage(p.id); } catch (e) {} });
+        U.log('已清空本机 ' + userPkgs.length + ' 个包');
+        fireChange();
+        return open(doc);
+      }
+
+      if (act === 'clearAll') {
+        if (!confirm('清空全部本地数据？\n\n' +
+                     '· 删除本机所有桌宠包（含内置模板的本地副本）\n' +
+                     '· 清空角色绑定、默认包、桌宠位置\n\n' +
+                     '只影响浏览器本地，扩展文件不受影响。')) return;
+        [R.LS_PACKAGES, R.LS_BINDINGS, R.LS_DEFAULT, 'shushu-pet:state'].forEach(function (k) {
+          try { localStorage.removeItem(k); } catch (e) {}
+        });
+        U.log('已清空全部本地数据');
+        fireChange();
+        return open(doc);
       }
 
       if (act === 'reset') {
