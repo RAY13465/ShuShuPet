@@ -1,0 +1,78 @@
+{
+  "id": "example",
+  "name": "示例桌宠",
+  "version": "1.0.0",
+  "description": "内置空白模板。把素材 URL 换成你自己的就能用；也可以直接在扩展的可视化编辑器里从头做一个。",
+
+  "contract": {
+    "tag": "PetState",
+    "lookback": 10,
+    "defaults": {
+      "eyes": "normal",
+      "motion": "still",
+      "speech": "在的。"
+    },
+    "fields": [
+      {
+        "name": "eyes",
+        "type": "enum",
+        "label": "眼睛",
+        "values": ["normal", "happy", "sad"],
+        "default": "normal",
+        "valueNotes": {
+          "normal": "平静",
+          "happy": "开心",
+          "sad": "难过"
+        }
+      },
+      {
+        "name": "motion",
+        "type": "enum",
+        "label": "动作",
+        "values": ["still", "breathe", "bounce", "swing"],
+        "default": "still",
+        "valueNotes": {
+          "still": "静止",
+          "breathe": "呼吸起伏",
+          "bounce": "开心蹦两下",
+          "swing": "得意摇摆"
+        }
+      },
+      {
+        "name": "speech",
+        "type": "text",
+        "label": "台词",
+        "default": "在的。"
+      }
+    ],
+    "fieldNotes": {
+      "motion": "情绪大多数时候保持 still, 仅在情绪真正转折时才用强动作",
+      "speech": "对 user 说的一句话, 20 字以内"
+    }
+  },
+
+  "render": {
+    "size": "25.5vh",
+    "zIndex": 3500,
+    "startRight": "1vh",
+    "startBottom": "6vh"
+  },
+
+  "layers": [
+    { "type": "base", "z": 10, "asset": "assets/base.png" },
+    {
+      "type": "enum", "z": 21, "field": "eyes",
+      "map": {
+        "happy": "assets/eyes_happy.png",
+        "sad": "assets/eyes_sad.png"
+      }
+    }
+  ],
+
+  "motions": {
+    "still":   {},
+    "breathe": { "keyframes": { "0%,100%": "transform:scale(1)", "50%": "transform:scale(1.025)" }, "duration": "4s", "timing": "ease-in-out", "iteration": "infinite" },
+    "bounce":  { "keyframes": { "0%,100%": "transform:translateY(0)", "50%": "transform:translateY(-15px)" }, "duration": ".5s", "iteration": "2" },
+    "swing":   { "keyframes": { "0%,100%": "transform:rotate(-6deg)", "50%": "transform:rotate(6deg)" }, "duration": "1.1s", "iteration": "3" }
+  }
+}

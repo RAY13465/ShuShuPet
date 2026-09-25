@@ -1,0 +1,32 @@
+# ---- 设计与系统文件 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+*.lnk
+
+# ---- 编辑器 ----
+.vscode/
+.idea/
+*.swp
+*~
+
+# ---- 依赖与构建产物 ----
+node_modules/
+dist/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# ---- 授权素材（立绘 / 角色设定等，版权不属于本仓库）----
+# 如果你把自用素材放在这些目录里，不会被误提交
+assets/
+pets/
+!builtin/**
+
+# ---- 本地调试残留 ----
+.cprof*/
+.shotprofile*/
+__*.html
+.probe*
+_*.cjs

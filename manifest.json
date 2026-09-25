@@ -1,0 +1,12 @@
+{
+  "display_name": "鼠鼠桌宠",
+  "loading_order": 90,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "鼠鼠小助手",
+  "version": "0.1.0",
+  "homePage": "",
+  "description": "鼠鼠桌宠：通用桌宠引擎。扩展负责全部代码——解析模型输出里的标签、按数据契约合成立绘图层、播放动作、拖拽、存档、自动定位、看门狗保活，并修复酒馆根元素包含块导致的 position:fixed 失效问题。作者只需提供「标签包裹词 + JSON 字段契约 + 立绘素材」即可产出一只桌宠。"
+}
