@@ -1,0 +1,20 @@
+# 统一按 LF 存进仓库，避免 Windows 上出现"整个文件都改了"的假象
+* text=auto eol=lf
+
+# 明确按二进制处理，别做换行转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+
+# 语言标注（GitHub 首页会显示）
+*.js text
+*.json text
+*.md text
+*.css text
+*.html text
