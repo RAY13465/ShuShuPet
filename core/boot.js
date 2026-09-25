@@ -25,6 +25,7 @@
   };
 
   var inst = null;
+  var warnedNoAsset = false;
   var currentPkgId = null;
   var timer = null;
   var running = false;
@@ -44,6 +45,8 @@
         var pkg = await res.json();
         var id = pkg.id || rel.replace(/^builtin\//, '').replace(/\.json$/, '');
         pkg.base = url.replace(/[^/]*$/, '');      /* 让包内相对素材路径可解析 */
+        /* 内置包是静态 JSON，占位素材用 @placeholder:xxx 标记，这里换成真图 */
+        if (win.PetPlaceholder) win.PetPlaceholder.resolvePackage(pkg);
         R.registerBuiltin(id, pkg);
         U.log('内置包已注册：' + id);
       } catch (e) {
@@ -78,6 +81,18 @@
       }
 
       var data = A.currentData(win, pkg);
+      /* 包里没有任何可用素材时不要挂上去——否则会渲染成一个透明元素，
+         用户看到的是"什么都没发生"，反而更难排查。 */
+      var usable = !win.PetPlaceholder || win.PetPlaceholder.hasUsableAsset(pkg);
+      if (data && !usable) {
+        inst.hide();
+        if (!warnedNoAsset) {
+          warnedNoAsset = true;
+          U.warn('当前桌宠包没有可用素材（图层里没有图片 URL），已跳过显示。' +
+                 '请打开「鼠鼠桌宠」→ 可视化编辑，把底图 URL 填上。');
+        }
+        return;
+      }
       if (data) {
         inst.mount(data);
       } else if (CFG.hideWhenAbsent) {
@@ -151,6 +166,7 @@
 
     running = true;
     S.installButton(doc);
+    S.startButtonWatch(doc);
 
     /* 5) 事件 + 轮询 */
     var l = A.listen(win, schedule);

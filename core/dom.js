@@ -244,10 +244,11 @@
     glow: 0,              /* 内发光强度(px) */
     glowColor: '#ffffff',
     /* 尾巴：现在是可以加多个的数组，每项独立控制。
-       默认给一条——就是小早原来那张贴图，保证没配置过的包不会突然没尾巴。 */
+       默认给一条占位尾巴——用的是内联 SVG，不引用任何外部素材，
+       保证没配置过的包也能看到"这里有尾巴"而不是空着。 */
     tails: [{
       mode: 'image',
-      image: 'https://free.picui.cn/free/2025/09/03/68b852d0aaf53.png',
+      image: '@placeholder:tail',
       width: 120, height: 120, right: -15, bottom: -102, rotate: -5,
       offsetX: 0, offsetY: 0, opacity: 100, color: ''
     }]
@@ -296,21 +297,31 @@
      注意：只有"没有 tails 字段"时才走旧格式。
      编辑器永远会写 tails（哪怕是空数组），所以空数组 = 确实不要尾巴。 */
   function tailsOf(c) {
+    var list;
     if (Array.isArray(c.tails)) {
       /* 空数组就是不要尾巴，但仍要把每项补齐默认值 */
       if (!c.tails.length) return [];
-      return c.tails.map(function (t) { return assignTailDefaults(t); });
-    }
-    /* 旧格式：单张 tailImage + tailMode */
-    if (c.tailImage || (c.tailMode && c.tailMode !== 'none')) {
-      return [assignTailDefaults({
+      list = c.tails.map(function (t) { return assignTailDefaults(t); });
+    } else if (c.tailImage || (c.tailMode && c.tailMode !== 'none')) {
+      /* 旧格式：单张 tailImage + tailMode */
+      list = [assignTailDefaults({
         mode: c.tailMode || 'image',
         image: c.tailImage || '',
         width: c.tailWidth, height: c.tailHeight,
         right: c.tailRight, bottom: c.tailBottom, rotate: c.tailRotate
       })];
+    } else {
+      return [];
     }
-    return [];
+    /* BUBBLE_DEFAULTS 里那条默认尾巴是 @placeholder:tail，它不经过 builtin 包的
+       解析流程（那条路只处理 JSON 里的标记），所以在这里兜一道再交给渲染。
+       编辑器里的草稿也会带着同样的标记，一并解决。 */
+    list.forEach(function (t) {
+      if (t && t.image && window.PetPlaceholder && window.PetPlaceholder.resolveToken) {
+        t.image = window.PetPlaceholder.resolveToken(t.image);
+      }
+    });
+    return list;
   }
 
   function bubbleCfg(pkg) {
@@ -324,7 +335,7 @@
       if (typeof BUBBLE_DEFAULTS[k] === 'number' && c[k] === 0) out[k] = 0;
     });
     /* tails 是数组，要区分三种情况：
-         ① 配置里没有 tails 键  → 用默认（小早那条）
+         ① 配置里没有 tails 键  → 用默认（内置占位尾巴）
          ② 配置里 tails 是数组  → 用配置的（空数组 = 确实不要尾巴）
          ③ 配置里 tails 是 null/'' → 交给下面的旧格式 tailImage 兼容分支
        注意不能无脑 delete，否则默认尾巴会丢。 */
